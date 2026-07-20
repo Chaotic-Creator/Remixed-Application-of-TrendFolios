@@ -1,14 +1,14 @@
 """
-Custom TrendFolios Backtest — SMH/SPY (Paper Spread Signal Version)
+Custom TrendFolios Backtest — SMH/SPY
 ==========================================================
-Pipeline (your 11-step remix, with Dr. Rojas' explicit spread equation):
+Pipeline (your 11-step remix):
   1. Price ratio P = SMH / SPY (using adjusted closing prices)
   2. Daily relative return R1 (%)
   3. Compounded relative return index CR (base 100)
   4. Per-horizon normalized returns R^v (v-day % change of CR)
   5. Moving averages of CR per horizon
   6. Relative volatility (corrected eq. 5: squared deviations, sum to n-1)
-  7. Paper spread signal (eq. 6): S = (R1 - mean(R^v)) / mean(R^v) + sigma^v / 100
+  7. Custom spread signal (custom additive remix): S = R1 - mean(R^v) + sigma^v
   8. Three Binary voters per horizon: Momentum, Trend, Spread
   9. Majority vote: 3 voters x 3 horizons = 9 votes; >4.5 (i.e. >=5) -> hold
  10. Position(t+1) = Signal(t)   <- trading one-day delay
@@ -16,11 +16,6 @@ Pipeline (your 11-step remix, with Dr. Rojas' explicit spread equation):
 
 Requires: pip install pandas numpy matplotlib
 """
-
-# This version differs from the normal backtest.py in a sense that it uses the the paper spread signal equation (eq. 6) 
-# instead of the custom additive remix. 
-
-
 
 import pandas as pd
 import numpy as np
@@ -86,12 +81,8 @@ for v in HORIZONS:
     # mean of R^v over the same trailing window
     Rv_mean = Rv.rolling(VOL_WINDOW).mean()
 
-    # Step 7: spread signal with Dr. Rojas' explicit equation 6
-    # S = (R1 - mean(R^v)) / mean(R^v) + sigma^v / 100
-    # WARNING: dividing by mean(R^v) is unstable when the mean is near zero
-    # (blow-up) or negative (sign inversion) — this is the instability the
-    # custom additive remix was designed to avoid.
-    S = (R1 - Rv_mean) / Rv_mean + sigma_v / 100
+    # Step 7: spread signal with custom additive remix
+    S = R1 - Rv_mean + sigma_v
 
     # Step 8: the three binary voters (NaN-safe: comparisons on NaN give
     # False, but we trim all warm-up rows below so no fake votes survive)
@@ -183,7 +174,7 @@ ax1.plot(bt.index, bt["strategy"], label="Strategy (long/flat SMH)", lw=1.6)
 ax1.plot(bt.index, bt["bh_smh"], label="Buy & Hold SMH", lw=1.2, alpha=0.8)
 ax1.plot(bt.index, bt["bh_spy"], label="Buy & Hold SPY", lw=1.2, alpha=0.8)
 ax1.set_ylabel(f"Growth of ${STARTING_CAPITAL:,}")
-ax1.set_title("Custom TrendFolios: 3-vote algorithm, horizons 5/21/63, Original Signal Spread")
+ax1.set_title("Custom TrendFolios: 3-vote algorithm, horizons 5/21/63, Custom Signal Spread")
 ax1.legend()
 ax1.grid(alpha=0.3)
 
@@ -194,5 +185,5 @@ ax2.set_yticklabels(["Cash", "SMH"])
 ax2.grid(alpha=0.3)
 
 plt.tight_layout()
-plt.savefig("backtest_result.png", dpi=150)
-print("\nChart saved to backtest_result.png")
+plt.savefig("backtest_result_nss.png", dpi=150)
+print("\nChart saved to backtest_result_nss.png")
